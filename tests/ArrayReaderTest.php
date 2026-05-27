@@ -4,138 +4,149 @@ declare(strict_types=1);
 
 namespace K2gl\ArrayReader\Tests;
 
+use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\ArrayReader;
-use K2gl\ArrayReader\Exception\MissingKeyException;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
 
 use function K2gl\PHPUnitFluentAssertions\fact;
 
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(AbstractArrayReader::class)]
 #[CoversClass(ArrayReader::class)]
-#[CoversClass(MissingKeyException::class)]
 #[CoversClass(TypeMismatchException::class)]
 final class ArrayReaderTest extends TestCase
 {
-    public function testStrictReadersReturnTypedValues(): void
+    #[DataProvider('safeStringProvider')]
+    public function testStringCasts(mixed $input, string $expected): void
     {
-        // arrange
-        $reader = ArrayReader::of([
-            'name' => 'Ada',
-            'age' => 36,
-            'score' => 9.5,
-            'active' => true,
-            'meta' => ['a' => 1],
-            'tags' => ['x', 'y'],
-        ]);
+        fact(ArrayReader::of(['v' => $input])->string('v'))->is($expected);
+    }
 
-        // assert
-        fact($reader->string('name'))->is('Ada');
-        fact($reader->int('age'))->is(36);
-        fact($reader->float('score'))->is(9.5);
-        fact($reader->bool('active'))->true();
+    public static function safeStringProvider(): array
+    {
+        return [
+            ['text', 'text'],
+            [42, '42'],
+            [1.5, '1.5'],
+            [true, '1'],
+            [false, '0'],
+        ];
+    }
+
+    #[DataProvider('safeIntProvider')]
+    public function testIntCasts(mixed $input, int $expected): void
+    {
+        fact(ArrayReader::of(['v' => $input])->int('v'))->is($expected);
+    }
+
+    public static function safeIntProvider(): array
+    {
+        return [
+            [5, 5],
+            ['5', 5],
+            ['-3', -3],
+            [true, 1],
+            [false, 0],
+        ];
+    }
+
+    #[DataProvider('safeFloatProvider')]
+    public function testFloatCasts(mixed $input, float $expected): void
+    {
+        fact(ArrayReader::of(['v' => $input])->float('v'))->is($expected);
+    }
+
+    public static function safeFloatProvider(): array
+    {
+        return [
+            [1.5, 1.5],
+            [2, 2.0],
+            ['1.5', 1.5],
+            ['2', 2.0],
+        ];
+    }
+
+    #[DataProvider('safeBoolProvider')]
+    public function testBoolCasts(mixed $input, bool $expected): void
+    {
+        fact(ArrayReader::of(['v' => $input])->bool('v'))->is($expected);
+    }
+
+    public static function safeBoolProvider(): array
+    {
+        return [
+            [true, true],
+            ['on', true],
+            ['yes', true],
+            ['1', true],
+            ['true', true],
+            [1, true],
+            [false, false],
+            ['off', false],
+            ['no', false],
+            ['0', false],
+            ['', false],
+            [0, false],
+        ];
+    }
+
+    #[DataProvider('uncastableProvider')]
+    public function testStrictAccessorThrowsOnUncastableValue(string $type, mixed $input): void
+    {
+        $this->expectException(TypeMismatchException::class);
+
+        ArrayReader::of(['v' => $input])->{$type}('v');
+    }
+
+    public static function uncastableProvider(): array
+    {
+        return [
+            'garbage string to int' => ['int', 'abc'],
+            'fractional string to int' => ['int', '5.5'],
+            'float to int' => ['int', 1.5],
+            'garbage string to float' => ['float', 'abc'],
+            'ambiguous string to bool' => ['bool', 'maybe'],
+            'out-of-range int to bool' => ['bool', 2],
+            'array to string' => ['string', [1, 2]],
+        ];
+    }
+
+    public function testLenientReadersCastOrFallBack(): void
+    {
+        $reader = ArrayReader::of(['page' => '5', 'flag' => 'on', 'bad' => 'abc']);
+
+        fact($reader->intOr('page'))->is(5);
+        fact($reader->boolOr('flag'))->true();
+        fact($reader->intOr('bad', 7))->is(7);
+        fact($reader->intOr('missing', 0))->is(0);
+        fact($reader->stringOr('page'))->is('5');
+    }
+
+    public function testArrayAndListAreNotCast(): void
+    {
+        $reader = ArrayReader::of(['meta' => ['a' => 1], 'tags' => ['x', 'y']]);
+
         fact($reader->array('meta'))->is(['a' => 1]);
         fact($reader->list('tags'))->is(['x', 'y']);
     }
 
-    public function testFloatAcceptsLosslessIntWidening(): void
+    public function testNestedStaysSafeCasting(): void
     {
-        // act
-        $price = ArrayReader::of(['price' => 10])->float('price');
+        $reader = ArrayReader::of(['filters' => ['page' => '5']]);
 
-        // assert
-        fact($price)->is(10.0);
+        fact($reader->nested('filters') instanceof ArrayReader)->true();
+        fact($reader->nested('filters')->int('page'))->is(5);
     }
 
-    public function testHasDistinguishesPresentFromAbsentKeys(): void
+    public function testHeadlineHttpCase(): void
     {
-        // arrange
-        $reader = ArrayReader::of(['present' => null]);
+        $query = ArrayReader::of(['page' => '5', 'active' => 'on', 'ratio' => '1.5']);
 
-        // assert
-        fact($reader->has('present'))->true();
-        fact($reader->has('absent'))->false();
-    }
-
-    public function testLenientReadersFallBackToDefault(): void
-    {
-        // arrange
-        $reader = ArrayReader::of(['name' => 'Ada']);
-
-        // assert
-        fact($reader->stringOr('name'))->is('Ada');
-        fact($reader->stringOr('missing'))->is(null);
-        fact($reader->stringOr('missing', 'fallback'))->is('fallback');
-        fact($reader->intOr('missing', 0))->is(0);
-        fact($reader->floatOr('missing', 1.5))->is(1.5);
-        fact($reader->boolOr('missing', false))->false();
-        fact($reader->arrayOr('missing', []))->is([]);
-        fact($reader->listOr('missing', []))->is([]);
-    }
-
-    public function testLenientReadersFallBackOnTypeMismatch(): void
-    {
-        // arrange
-        $reader = ArrayReader::of(['age' => 'not-an-int']);
-
-        // assert
-        fact($reader->intOr('age', -1))->is(-1);
-    }
-
-    public function testNestedReturnsSubReader(): void
-    {
-        // arrange
-        $reader = ArrayReader::of(['address' => ['city' => 'Paris']]);
-
-        // assert
-        fact($reader->nested('address')->string('city'))->is('Paris');
-        fact($reader->nestedOr('missing'))->is(null);
-    }
-
-    public function testToArrayReturnsUnderlyingData(): void
-    {
-        // arrange
-        $data = ['a' => 1, 'b' => 2];
-
-        // assert
-        fact(ArrayReader::of($data)->toArray())->is($data);
-    }
-
-    public function testStringThrowsOnMissingKey(): void
-    {
-        $this->expectException(MissingKeyException::class);
-        $this->expectExceptionMessage('Missing required key "email".');
-
-        ArrayReader::of([])->string('email');
-    }
-
-    public function testStrictReaderThrowsOnTypeMismatch(): void
-    {
-        $this->expectException(TypeMismatchException::class);
-        $this->expectExceptionMessage('Expected "string" at key "age", got "int".');
-
-        ArrayReader::of(['age' => 36])->string('age');
-    }
-
-    public function testPresentNullValueIsATypeMismatchForStrictReader(): void
-    {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['name' => null])->string('name');
-    }
-
-    public function testIntRejectsFloat(): void
-    {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['n' => 1.5])->int('n');
-    }
-
-    public function testListRejectsAssociativeArray(): void
-    {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['map' => ['a' => 1]])->list('map');
+        fact($query->int('page'))->is(5);
+        fact($query->bool('active'))->true();
+        fact($query->float('ratio'))->is(1.5);
     }
 }

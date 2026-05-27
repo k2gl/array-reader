@@ -1,0 +1,403 @@
+<?php
+
+declare(strict_types=1);
+
+namespace K2gl\ArrayReader;
+
+use K2gl\ArrayReader\Exception\InvalidJsonException;
+use K2gl\ArrayReader\Exception\MissingKeyException;
+use K2gl\ArrayReader\Exception\TypeMismatchException;
+
+/**
+ * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
+ * configuration arrays, request payloads.
+ *
+ * Concrete readers differ only in how they convert a value whose type does not
+ * match the requested one (see {@see castMode()}): {@see StrictArrayReader} (none),
+ * {@see ArrayReader} (safe), {@see LooseArrayReader} (loose).
+ *
+ * Each scalar type offers two access styles:
+ *  - strict:  `string($key)` returns the value, or throws on a missing key or a
+ *             value that cannot be produced;
+ *  - lenient: `stringOr($key, $default = null)` returns the value, or `$default`
+ *             when the key is absent or the value cannot be produced.
+ *
+ * `array()`, `list()` and `nested()` never cast — they validate array shape in
+ * every mode.
+ */
+abstract class AbstractArrayReader
+{
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    final public function __construct(protected readonly array $data)
+    {
+    }
+
+    abstract protected function castMode(): CastMode;
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    public static function of(array $data): static
+    {
+        return new static($data);
+    }
+
+    /**
+     * Decode a JSON object/array into a reader.
+     *
+     * @throws InvalidJsonException when the string is not valid JSON, or does not decode to an array
+     */
+    public static function fromJson(string $json): static
+    {
+        try {
+            /** @var mixed $decoded */
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw InvalidJsonException::decodeFailed($e);
+        }
+
+        if (!is_array($decoded)) {
+            throw InvalidJsonException::notArray($decoded);
+        }
+
+        return new static($decoded);
+    }
+
+    public function has(string|int $key): bool
+    {
+        return array_key_exists($key, $this->data);
+    }
+
+    /**
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function string(string|int $key): string
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asString($value);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected('string', $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @return ($default is null ? string|null : string)
+     */
+    public function stringOr(string|int $key, ?string $default = null): ?string
+    {
+        $cast = $this->asString($this->data[$key] ?? null);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function int(string|int $key): int
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asInt($value);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected('int', $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @return ($default is null ? int|null : int)
+     */
+    public function intOr(string|int $key, ?int $default = null): ?int
+    {
+        $cast = $this->asInt($this->data[$key] ?? null);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function float(string|int $key): float
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asFloat($value);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected('float', $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @return ($default is null ? float|null : float)
+     */
+    public function floatOr(string|int $key, ?float $default = null): ?float
+    {
+        $cast = $this->asFloat($this->data[$key] ?? null);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function bool(string|int $key): bool
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asBool($value);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected('bool', $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @return ($default is null ? bool|null : bool)
+     */
+    public function boolOr(string|int $key, ?bool $default = null): ?bool
+    {
+        $cast = $this->asBool($this->data[$key] ?? null);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function array(string|int $key): array
+    {
+        $value = $this->requireKey($key);
+
+        if (!is_array($value)) {
+            throw TypeMismatchException::expected('array', $key, $value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed>|null $default
+     *
+     * @return ($default is null ? array<array-key, mixed>|null : array<array-key, mixed>)
+     */
+    public function arrayOr(string|int $key, ?array $default = null): ?array
+    {
+        $value = $this->data[$key] ?? null;
+
+        return is_array($value) ? $value : $default;
+    }
+
+    /**
+     * A list is an array with sequential integer keys starting at 0.
+     *
+     * @return list<mixed>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function list(string|int $key): array
+    {
+        $value = $this->array($key);
+
+        if (!array_is_list($value)) {
+            throw TypeMismatchException::expected('list', $key, $value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param list<mixed>|null $default
+     *
+     * @return ($default is null ? list<mixed>|null : list<mixed>)
+     */
+    public function listOr(string|int $key, ?array $default = null): ?array
+    {
+        $value = $this->data[$key] ?? null;
+
+        return is_array($value) && array_is_list($value) ? $value : $default;
+    }
+
+    /**
+     * Read a nested array as its own reader of the same kind.
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function nested(string|int $key): static
+    {
+        return new static($this->array($key));
+    }
+
+    public function nestedOr(string|int $key): ?static
+    {
+        $value = $this->data[$key] ?? null;
+
+        return is_array($value) ? new static($value) : null;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    public function toArray(): array
+    {
+        return $this->data;
+    }
+
+    /**
+     * @throws MissingKeyException
+     */
+    private function requireKey(string|int $key): mixed
+    {
+        if (!array_key_exists($key, $this->data)) {
+            throw MissingKeyException::forKey($key);
+        }
+
+        return $this->data[$key];
+    }
+
+    private function asString(mixed $value): string|Miss
+    {
+        if (is_string($value)) {
+            return $value;
+        }
+
+        return match ($this->castMode()) {
+            CastMode::None => Miss::Value,
+            CastMode::Safe => $this->safeString($value),
+            CastMode::Loose => $this->looseString($value),
+        };
+    }
+
+    private function safeString(mixed $value): string|Miss
+    {
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return Miss::Value;
+    }
+
+    private function looseString(mixed $value): string|Miss
+    {
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return Miss::Value;
+    }
+
+    private function asInt(mixed $value): int|Miss
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        return match ($this->castMode()) {
+            CastMode::None => Miss::Value,
+            CastMode::Safe => $this->safeInt($value),
+            CastMode::Loose => is_scalar($value) ? (int) $value : Miss::Value,
+        };
+    }
+
+    private function safeInt(mixed $value): int|Miss
+    {
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+
+        if (is_string($value)) {
+            $int = filter_var($value, FILTER_VALIDATE_INT);
+
+            return $int === false ? Miss::Value : $int;
+        }
+
+        return Miss::Value;
+    }
+
+    private function asFloat(mixed $value): float|Miss
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        return match ($this->castMode()) {
+            CastMode::None => Miss::Value,
+            CastMode::Safe => $this->safeFloat($value),
+            CastMode::Loose => is_scalar($value) ? (float) $value : Miss::Value,
+        };
+    }
+
+    private function safeFloat(mixed $value): float|Miss
+    {
+        if (is_string($value)) {
+            $float = filter_var($value, FILTER_VALIDATE_FLOAT);
+
+            if ($float !== false) {
+                return $float;
+            }
+        }
+
+        return Miss::Value;
+    }
+
+    private function asBool(mixed $value): bool|Miss
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return match ($this->castMode()) {
+            CastMode::None => Miss::Value,
+            CastMode::Safe => $this->safeBool($value),
+            CastMode::Loose => is_scalar($value) ? (bool) $value : Miss::Value,
+        };
+    }
+
+    private function safeBool(mixed $value): bool|Miss
+    {
+        if (is_int($value)) {
+            return match ($value) {
+                0 => false,
+                1 => true,
+                default => Miss::Value,
+            };
+        }
+
+        if (is_string($value)) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            return $bool === null ? Miss::Value : $bool;
+        }
+
+        return Miss::Value;
+    }
+}

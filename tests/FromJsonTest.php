@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace K2gl\ArrayReader\Tests;
 
+use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\ArrayReader;
 use K2gl\ArrayReader\Exception\InvalidJsonException;
 
@@ -12,6 +13,7 @@ use function K2gl\PHPUnitFluentAssertions\fact;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(AbstractArrayReader::class)]
 #[CoversClass(ArrayReader::class)]
 #[CoversClass(InvalidJsonException::class)]
 final class FromJsonTest extends TestCase
