@@ -5,39 +5,29 @@
 [![PHP Version Require](https://poser.pugx.org/k2gl/array-reader/require/php)](https://packagist.org/packages/k2gl/array-reader)
 [![License](https://poser.pugx.org/k2gl/array-reader/license)](https://packagist.org/packages/k2gl/array-reader)
 
-A tiny, **zero-dependency** typed reader for "mixed" arrays — query strings, form input, CSV rows,
-decoded JSON, configuration, environment. Read typed values without the
-`isset(...) && is_string(...) ? ... : null` boilerplate, with the casting strictness you choose,
-and keep static analysers (PHPStan / Psalm) following your types.
+Read typed values out of an untyped `array` — query strings, form input, CSV rows, decoded JSON,
+config, environment — **without** the `isset(...) && is_string(...) ? ... : null` dance, and
+**without** dropping to `mixed` in the eyes of PHPStan / Psalm.
 
 ```php
 use K2gl\ArrayReader\ArrayReader;
 
-$query = ArrayReader::of($_GET);          // safe casting — the default
+$request = ArrayReader::of($_GET);
 
-$page   = $query->int('page');            // '5'   -> 5
-$active  = $query->bool('active');        // 'on'  -> true
-$ratio  = $query->floatOr('ratio', 1.0);  // '1.5' -> 1.5, or 1.0 if absent/invalid
+$page    = $request->int('page');             // "5"   -> 5   (int)
+$active  = $request->bool('active');          // "on"  -> true (bool)
+$perPage = $request->intOr('per_page', 20);   // 20 if it is absent or not a valid number
 ```
 
-## Three flavours
+Without it you write the same guard for every field and still end up with `mixed`:
 
-Pick a class by how a value that doesn't match the requested type should be handled. The API is
-otherwise identical.
+```php
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : null;
+```
 
-| Class | Behaviour | `int('x')` on `'5'` | on `'abc'` |
-| --- | --- | --- | --- |
-| `ArrayReader` | **safe cast** (default) | `5` | throws / default |
-| `StrictArrayReader` | no casting — exact type only | throws | throws |
-| `LooseArrayReader` | PHP cast for any scalar | `5` | `0` |
-
-- **`ArrayReader`** converts sensible representations (numeric strings, `bool`↔`int`, `Stringable`,
-  `'on'`/`'yes'`/`'1'` → `true`) and rejects anything ambiguous or lossy. Best for string-sourced
-  data — HTTP, CSV, environment variables.
-- **`StrictArrayReader`** requires the value to already be of the requested type (lossless
-  `int`→`float` aside). Use it to validate an already-decoded, well-typed payload.
-- **`LooseArrayReader`** applies PHP's native cast to any scalar (`'abc'` → `0`, any non-empty
-  string except `'0'` → `true`) and never gives up on a scalar. Use only when you want exactly that.
+**Why install it:** one tiny, **zero-dependency** class family that turns messy input arrays into
+typed values, lets you choose how forgiving the conversion is, fails loudly on missing data, and
+keeps static analysis green.
 
 ## Install
 
@@ -47,49 +37,119 @@ composer require k2gl/array-reader
 
 Requires PHP 8.1+. No runtime dependencies.
 
-## Usage
+## Pick a reader
 
-### Strict and lenient access
-
-Every scalar type has two accessors on all three classes:
-
-- **strict** — `int($key)` returns the value, or throws `MissingKeyException` (key absent) or
-  `TypeMismatchException` (value can't be produced as the requested type);
-- **lenient** — `intOr($key, $default = null)` returns the value, or `$default` when the key is
-  absent or the value can't be produced. With a non-null default you get a non-null type back
-  (expressed via conditional return types, so PHPStan/Psalm understand it).
+There are three readers. They expose the **same methods** and differ only in how they handle a
+value whose type doesn't match what you asked for. Here is one input read by each:
 
 ```php
-$r->string($key);   $r->stringOr($key, 'fallback');
-$r->int($key);      $r->intOr($key, 0);
-$r->float($key);    $r->floatOr($key, 0.0);
-$r->bool($key);     $r->boolOr($key, false);
+$data = ['count' => '42', 'price' => '9.99', 'enabled' => 'yes'];
 ```
 
-### Arrays, lists and nesting
+### `ArrayReader` — safe casting (use this by default)
 
-`array()`, `list()` and `nested()` **never cast** in any flavour — they validate shape:
+Converts the obvious string/number/bool representations and **rejects anything ambiguous or
+lossy**. Ideal for data that arrives as strings: `$_GET`, `$_POST`, CSV rows, environment variables.
 
 ```php
-$r->array($key);    // array<array-key, mixed>
-$r->list($key);     // list<mixed> (sequential, 0-based)
-$r->nested($key);   // a reader of the same flavour over the nested array
-$r->arrayOr($key, []);  $r->listOr($key, []);  $r->nestedOr($key); // lenient variants
+use K2gl\ArrayReader\ArrayReader;
+
+$request = ArrayReader::of($data);
+
+$request->int('count');        // 42        — "42" is a whole number
+$request->float('price');      // 9.99      — numeric string
+$request->bool('enabled');     // true      — "yes"
+$request->int('price');        // throws TypeMismatchException — "9.99" is not an integer
+$request->intOr('price', 0);   // 0         — the lenient variant returns the default, never throws
 ```
 
-### Helpers
+### `StrictArrayReader` — exact type only
+
+Accepts a value only if it is **already** the requested type (the lone convenience: an `int` may be
+read as `float`). Ideal for data you already trust to be well-typed, e.g. a decoded JSON document.
 
 ```php
-$r->has($key);     // bool — key present? (true even when the value is null)
-$r->toArray();     // array<array-key, mixed> — the underlying data
+use K2gl\ArrayReader\StrictArrayReader;
+
+$document = StrictArrayReader::of(['count' => 42, 'name' => 'Ada']);
+
+$document->int('count');       // 42
+$document->string('name');     // 'Ada'
+
+StrictArrayReader::of(['count' => '42'])->int('count'); // throws — "42" is a string, not an int
 ```
 
-### Error handling
+### `LooseArrayReader` — PHP's native cast
 
-Every exception implements `K2gl\ArrayReader\Exception\ArrayReaderException`, so you can catch them
-all at once:
+Casts **any scalar** with PHP's own rules and never rejects a scalar — so malformed input passes
+through silently. Reach for it only when you explicitly want that behaviour.
 
 ```php
+use K2gl\ArrayReader\LooseArrayReader;
+
+$loose = LooseArrayReader::of($data);
+
+$loose->int('price');          // 9         — (int) "9.99"
+$loose->bool('enabled');       // true
+$loose->int('count');          // 42
+
+LooseArrayReader::of(['x' => 'abc'])->int('x'); // 0   — (int) "abc"
+$loose->int('missing');        // throws MissingKeyException — a missing key is always an error
+```
+
+## Reading values
+
+For every scalar type each reader offers two accessors:
+
+- **strict** `int($key)` — returns the value, or throws: `MissingKeyException` when the key is
+  absent, `TypeMismatchException` when the value cannot be produced as the requested type.
+- **lenient** `intOr($key, $default = null)` — returns the value, or `$default` when the key is
+  absent or the value cannot be produced. Pass a non-null default and the return type is non-null
+  too (conditional return types, so PHPStan / Psalm narrow it for you).
+
+```php
+$form = ArrayReader::of($_POST);
+
+$email    = $form->string('email');          // string  (throws if missing / not producible)
+$nickname = $form->stringOr('nickname');     // ?string (null when absent)
+$age      = $form->intOr('age', 0);          // int     (0 when absent / invalid)
+$price    = $form->float('price');           // float
+$subscribe = $form->boolOr('subscribe', false);
+```
+
+## Arrays, lists and nesting
+
+`array()`, `list()` and `nested()` **never cast** — in every reader they only validate shape:
+
+```php
+$config = ArrayReader::of($decoded);
+
+$config->array('options');               // array<array-key, mixed>
+$config->list('tags');                   // list<mixed> — sequential, 0-based keys
+$config->nested('database')->string('host');   // a reader of the same kind over the nested array
+
+$config->arrayOr('options', []);         // lenient variants return the default instead of throwing
+$config->listOr('tags', []);
+$config->nestedOr('database');           // ?reader
+```
+
+## Helpers and JSON
+
+```php
+$config = ArrayReader::of($decoded);
+$config->has('debug');                   // bool — is the key present? (true even if its value is null)
+$config->toArray();                      // the underlying array<array-key, mixed>
+
+$request = ArrayReader::fromJson($body); // decode a JSON object/array straight into a reader
+```
+
+## Error handling
+
+Every exception implements `K2gl\ArrayReader\Exception\ArrayReaderException`, so you can catch the
+whole family at once:
+
+```php
+use K2gl\ArrayReader\ArrayReader;
 use K2gl\ArrayReader\Exception\ArrayReaderException;
 
 try {
@@ -101,21 +161,15 @@ try {
 
 ## Safe casting reference (`ArrayReader`)
 
-| Accessor | Accepts (besides the exact type) |
+What `ArrayReader` accepts beyond the exact type — anything else throws (strict) or returns the
+default (`*Or`):
+
+| Accessor | Also accepts |
 | --- | --- |
-| `string` | `int`/`float` → string, `bool` → `'1'`/`'0'`, `Stringable` |
-| `int` | integer numeric string (`'5'`, `'-3'`), `bool` → `1`/`0` (rejects floats, `'5.5'`, `'abc'`) |
-| `float` | `int`, numeric string (`'1.5'`, `'2'`) |
-| `bool` | `'1'`/`'true'`/`'on'`/`'yes'` → true, `'0'`/`'false'`/`'off'`/`'no'`/`''` → false, `int` `0`/`1` |
-
-Anything not listed is a `TypeMismatchException` (strict accessor) or the default (`*Or` accessor).
-
-## Upgrading from 1.x
-
-In 1.0 the single `ArrayReader` was strict ("no implicit coercion"). In 2.0 `ArrayReader`
-**safe-casts** by default; the old exact-type behaviour now lives in **`StrictArrayReader`**. If you
-relied on strict reads, replace `ArrayReader` with `StrictArrayReader` — the method names, exceptions
-and `array()`/`list()`/`nested()` semantics are unchanged.
+| `string` | `int`/`float` → string, `bool` → `"1"`/`"0"`, `Stringable` |
+| `int` | integer numeric string (`"5"`, `"-3"`), `bool` → `1`/`0` — rejects floats, `"5.5"`, `"abc"` |
+| `float` | `int`, numeric string (`"1.5"`, `"2"`) |
+| `bool` | `"1"`/`"true"`/`"on"`/`"yes"` → true, `"0"`/`"false"`/`"off"`/`"no"`/`""` → false, `int` `0`/`1` |
 
 ## Zero dependencies
 

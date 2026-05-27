@@ -2,21 +2,14 @@
 
 ## 2.0.0
 
-Casting support, via three sibling readers chosen by how a mismatched value is handled:
+First public release. A tiny, zero-dependency typed reader for untyped arrays, in three flavours
+that share the same API and differ only in how a mismatched value is handled:
 
-- **`ArrayReader`** now **safe-casts** — numeric strings, `bool`↔`int`, `Stringable`, and
-  `'on'`/`'yes'`/`'1'` → `true`, while ambiguous or lossy values are rejected. This is the right
-  default for HTTP query/form, CSV and environment data.
-- **`StrictArrayReader`** (new) keeps the 1.x behaviour: exact type only (lossless `int`→`float`
-  aside).
-- **`LooseArrayReader`** (new) applies PHP's native scalar casts and never rejects a scalar.
+- **`ArrayReader`** — safe casting (the default): converts numeric strings, `bool`↔`int`,
+  `Stringable`, and `'on'`/`'yes'`/`'1'` → `true`, while rejecting anything ambiguous or lossy.
+- **`StrictArrayReader`** — exact type only (lossless `int`→`float` aside).
+- **`LooseArrayReader`** — PHP's native scalar casts; never rejects a scalar.
 
-### Backward compatibility
-
-**Breaking:** `ArrayReader` was strict in 1.x and now safe-casts. Replace `ArrayReader` with
-`StrictArrayReader` to keep the old behaviour. The strict/lenient method names, the exception
-hierarchy, and `array()`/`list()`/`nested()` (which never cast) are unchanged.
-
-## 1.0.0
-
-Initial release: a single strict `ArrayReader` with strict and lenient typed accessors.
+Each scalar type has a strict accessor (throws `MissingKeyException` / `TypeMismatchException`) and
+a lenient `*Or` accessor (returns a default). `array()`, `list()` and `nested()` validate shape and
+never cast. Every exception implements `ArrayReaderException`. Also reads JSON via `fromJson()`.
