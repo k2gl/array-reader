@@ -115,13 +115,12 @@ try {
 - **Precise types.** Return types are as specific as possible (`list<mixed>`, conditional
   nullability) so static analysis stays green without `assert()` noise.
 
-## Comparison
+## Zero dependencies
 
-| Package | Purpose | Difference |
-| --- | --- | --- |
-| `*-typed-array` (steevanb, jumpifbelow, …) | Homogeneous **collections** (an array of one type) | `array-reader` reads heterogeneous data and extracts individual typed fields. |
-| `cuyz/valinor`, schema decoders | Map arrays into **objects** against a schema | `array-reader` is a few-kilobyte reader for ad-hoc field access — no mapping, no schema, no dependencies. |
-| `symfony/property-access`, dot-access libs | **Path** access into nested structures | `array-reader` focuses on *typed* access with strict/lenient semantics. |
+`array-reader` has **no runtime dependencies** — its only `require` is `php` itself. Installing it
+pulls nothing else into your dependency tree: no transitive packages to audit, no version conflicts
+to resolve, and it is safe to drop into any application or library, including ones that must stay
+dependency-light. The whole package is one small class plus its exception types.
 
 ## License
 
