@@ -8,11 +8,10 @@ use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\Exception\MissingKeyException;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
 use K2gl\ArrayReader\StrictArrayReader;
-
-use function K2gl\PHPUnitFluentAssertions\fact;
-
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+
+use function K2gl\PHPUnitFluentAssertions\fact;
 
 #[CoversClass(AbstractArrayReader::class)]
 #[CoversClass(StrictArrayReader::class)]

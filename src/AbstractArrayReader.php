@@ -7,6 +7,8 @@ namespace K2gl\ArrayReader;
 use K2gl\ArrayReader\Exception\InvalidJsonException;
 use K2gl\ArrayReader\Exception\MissingKeyException;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
+use JsonException;
+use Stringable;
 
 /**
  * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
@@ -30,9 +32,7 @@ abstract class AbstractArrayReader
     /**
      * @param array<array-key, mixed> $data
      */
-    final public function __construct(protected readonly array $data)
-    {
-    }
+    final public function __construct(protected readonly array $data) {}
 
     abstract protected function castMode(): CastMode;
 
@@ -54,11 +54,11 @@ abstract class AbstractArrayReader
         try {
             /** @var mixed $decoded */
             $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             throw InvalidJsonException::decodeFailed($e);
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             throw InvalidJsonException::notArray($decoded);
         }
 
@@ -184,7 +184,7 @@ abstract class AbstractArrayReader
     {
         $value = $this->requireKey($key);
 
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             throw TypeMismatchException::expected('array', $key, $value);
         }
 
@@ -215,7 +215,7 @@ abstract class AbstractArrayReader
     {
         $value = $this->array($key);
 
-        if (!array_is_list($value)) {
+        if (! array_is_list($value)) {
             throw TypeMismatchException::expected('list', $key, $value);
         }
 
@@ -265,7 +265,7 @@ abstract class AbstractArrayReader
      */
     private function requireKey(string|int $key): mixed
     {
-        if (!array_key_exists($key, $this->data)) {
+        if (! array_key_exists($key, $this->data)) {
             throw MissingKeyException::forKey($key);
         }
 
@@ -295,7 +295,7 @@ abstract class AbstractArrayReader
             return $value ? '1' : '0';
         }
 
-        if ($value instanceof \Stringable) {
+        if ($value instanceof Stringable) {
             return (string) $value;
         }
 
@@ -308,7 +308,7 @@ abstract class AbstractArrayReader
             return (string) $value;
         }
 
-        if ($value instanceof \Stringable) {
+        if ($value instanceof Stringable) {
             return (string) $value;
         }
 

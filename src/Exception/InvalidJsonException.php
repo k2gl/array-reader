@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace K2gl\ArrayReader\Exception;
 
-final class InvalidJsonException extends \UnexpectedValueException implements ArrayReaderException
+use JsonException;
+use UnexpectedValueException;
+
+final class InvalidJsonException extends UnexpectedValueException implements ArrayReaderException
 {
-    public static function decodeFailed(\JsonException $previous): self
+    public static function decodeFailed(JsonException $previous): self
     {
         return new self(
             sprintf('Failed to decode JSON: %s', $previous->getMessage()),

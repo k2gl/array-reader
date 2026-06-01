@@ -1,9 +1,10 @@
 # k2gl/array-reader
 
-[![CI](https://github.com/k2gl/array-reader/actions/workflows/ci.yml/badge.svg)](https://github.com/k2gl/array-reader/actions/workflows/ci.yml)
-[![Latest Stable Version](https://poser.pugx.org/k2gl/array-reader/v)](https://packagist.org/packages/k2gl/array-reader)
-[![PHP Version Require](https://poser.pugx.org/k2gl/array-reader/require/php)](https://packagist.org/packages/k2gl/array-reader)
-[![License](https://poser.pugx.org/k2gl/array-reader/license)](https://packagist.org/packages/k2gl/array-reader)
+[![CI](https://img.shields.io/github/actions/workflow/status/k2gl/array-reader/ci.yml?branch=main&label=CI&logo=github)](https://github.com/k2gl/array-reader/actions/workflows/ci.yml)
+[![Latest Stable Version](https://img.shields.io/packagist/v/k2gl/array-reader?logo=packagist&logoColor=white)](https://packagist.org/packages/k2gl/array-reader)
+[![Total Downloads](https://img.shields.io/packagist/dt/k2gl/array-reader?logo=packagist&logoColor=white)](https://packagist.org/packages/k2gl/array-reader)
+[![PHPStan Level](https://img.shields.io/badge/PHPStan-level%209-2a5ea7?logo=php&logoColor=white)](https://phpstan.org)
+[![License](https://img.shields.io/packagist/l/k2gl/array-reader?color=yellowgreen)](https://packagist.org/packages/k2gl/array-reader)
 
 Read typed values out of an untyped `array` — query strings, form input, CSV rows, decoded JSON,
 config, environment — **without** the `isset(...) && is_string(...) ? ... : null` dance, and
