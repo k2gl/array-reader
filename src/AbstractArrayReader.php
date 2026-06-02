@@ -11,6 +11,7 @@ use JsonException;
 use Stringable;
 use BackedEnum;
 use ReflectionEnum;
+use ReflectionNamedType;
 
 /**
  * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
@@ -456,9 +457,10 @@ abstract class AbstractArrayReader
      */
     private function asEnum(mixed $value, string $enum): BackedEnum|Miss
     {
-        $scalar = (new ReflectionEnum($enum))->getBackingType()?->getName() === 'int'
-            ? $this->asInt($value)
-            : $this->asString($value);
+        $backingType = (new ReflectionEnum($enum))->getBackingType();
+        $isIntBacked = $backingType instanceof ReflectionNamedType && $backingType->getName() === 'int';
+
+        $scalar = $isIntBacked ? $this->asInt($value) : $this->asString($value);
 
         if ($scalar instanceof Miss) {
             return Miss::Value;
