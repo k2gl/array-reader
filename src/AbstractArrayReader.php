@@ -9,6 +9,9 @@ use K2gl\ArrayReader\Exception\MissingKeyException;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
 use JsonException;
 use Stringable;
+use BackedEnum;
+use ReflectionEnum;
+use ReflectionNamedType;
 
 /**
  * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
@@ -23,6 +26,10 @@ use Stringable;
  *             value that cannot be produced;
  *  - lenient: `stringOr($key, $default = null)` returns the value, or `$default`
  *             when the key is absent or the value cannot be produced.
+ *
+ * Backed enums use the same two styles via `enum()` / `enumOr()`: the enum's
+ * backing scalar is read through the cast pipeline, then resolved with
+ * `BackedEnum::tryFrom()`.
  *
  * `array()`, `list()` and `nested()` never cast — they validate array shape in
  * every mode.
@@ -170,6 +177,46 @@ abstract class AbstractArrayReader
     public function boolOr(string|int $key, ?bool $default = null): ?bool
     {
         $cast = $this->asBool($this->data[$key] ?? null);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * Read a backed enum: the enum's backing scalar is produced through the cast
+     * pipeline (so the reader's mode applies), then resolved with `tryFrom()`.
+     *
+     * @template T of \BackedEnum
+     *
+     * @param class-string<T> $enum
+     *
+     * @return T
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function enum(string|int $key, string $enum): BackedEnum
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asEnum($value, $enum);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected($enum, $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @template T of \BackedEnum
+     *
+     * @param class-string<T> $enum
+     * @param T|null          $default
+     *
+     * @return ($default is null ? T|null : T)
+     */
+    public function enumOr(string|int $key, string $enum, ?BackedEnum $default = null): ?BackedEnum
+    {
+        $cast = $this->asEnum($this->data[$key] ?? null, $enum);
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -399,5 +446,26 @@ abstract class AbstractArrayReader
         }
 
         return Miss::Value;
+    }
+
+    /**
+     * @template T of \BackedEnum
+     *
+     * @param class-string<T> $enum
+     *
+     * @return T|Miss
+     */
+    private function asEnum(mixed $value, string $enum): BackedEnum|Miss
+    {
+        $backingType = (new ReflectionEnum($enum))->getBackingType();
+        $isIntBacked = $backingType instanceof ReflectionNamedType && $backingType->getName() === 'int';
+
+        $scalar = $isIntBacked ? $this->asInt($value) : $this->asString($value);
+
+        if ($scalar instanceof Miss) {
+            return Miss::Value;
+        }
+
+        return $enum::tryFrom($scalar) ?? Miss::Value;
     }
 }

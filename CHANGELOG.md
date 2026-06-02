@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+Add `enum()` / `enumOr()` accessors for backed enums. They read the enum's backing scalar through
+the same cast pipeline (so the reader's cast mode applies) and resolve the case via
+`BackedEnum::tryFrom()`; a value that is missing, not producible as the backing type, or not one of
+the enum's cases throws `TypeMismatchException` (strict) or returns the default (`enumOr`).
+
 ## 2.0.0
 
 First public release. A tiny, zero-dependency typed reader for untyped arrays, in three flavours

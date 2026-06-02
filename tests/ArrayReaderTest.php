@@ -7,6 +7,8 @@ namespace K2gl\ArrayReader\Tests;
 use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\ArrayReader;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
+use K2gl\ArrayReader\Tests\Fixtures\Priority;
+use K2gl\ArrayReader\Tests\Fixtures\Suit;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -147,5 +149,45 @@ final class ArrayReaderTest extends TestCase
         fact($query->int('page'))->is(5);
         fact($query->bool('active'))->true();
         fact($query->float('ratio'))->is(1.5);
+    }
+
+    public function testStringBackedEnumResolvesFromString(): void
+    {
+        fact(ArrayReader::of(['suit' => 'spades'])->enum('suit', Suit::class))->is(Suit::Spades);
+    }
+
+    public function testIntBackedEnumResolvesFromNumericString(): void
+    {
+        // Safe casting converts the numeric string to the enum's int backing.
+        fact(ArrayReader::of(['priority' => '3'])->enum('priority', Priority::class))->is(Priority::High);
+    }
+
+    public function testEnumOrFallsBackOnMissingKey(): void
+    {
+        fact(ArrayReader::of([])->enumOr('suit', Suit::class, Suit::Hearts))->is(Suit::Hearts);
+    }
+
+    public function testEnumOrFallsBackOnUnknownCase(): void
+    {
+        fact(ArrayReader::of(['suit' => 'jokers'])->enumOr('suit', Suit::class, Suit::Hearts))->is(Suit::Hearts);
+    }
+
+    public function testEnumOrReturnsNullWithoutDefault(): void
+    {
+        fact(ArrayReader::of(['suit' => 'jokers'])->enumOr('suit', Suit::class))->null();
+    }
+
+    public function testEnumThrowsOnUnknownCase(): void
+    {
+        $this->expectException(TypeMismatchException::class);
+
+        ArrayReader::of(['suit' => 'jokers'])->enum('suit', Suit::class);
+    }
+
+    public function testEnumThrowsOnNonScalar(): void
+    {
+        $this->expectException(TypeMismatchException::class);
+
+        ArrayReader::of(['suit' => ['spades']])->enum('suit', Suit::class);
     }
 }
