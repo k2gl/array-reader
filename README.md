@@ -134,6 +134,27 @@ $config->listOr('tags', []);
 $config->nestedOr('database');           // ?reader
 ```
 
+## Enums
+
+`enum()` / `enumOr()` read a **backed enum**: the enum's backing scalar is produced through the
+same cast pipeline (so the reader's cast mode applies), then resolved with `BackedEnum::tryFrom()`.
+A value that is absent, cannot be produced as the backing type, or is not one of the enum's cases
+throws (strict) or returns the default (`enumOr`):
+
+```php
+enum Suit: string { case Hearts = 'hearts'; case Spades = 'spades'; }
+
+$card = ArrayReader::of($row);
+
+$card->enum('suit', Suit::class);                 // Suit  (throws if missing / not a valid case)
+$card->enumOr('suit', Suit::class);               // ?Suit (null when absent / invalid)
+$card->enumOr('suit', Suit::class, Suit::Hearts); // Suit  (Suit::Hearts when absent / invalid)
+```
+
+The cast mode applies to the backing scalar: with `ArrayReader` (safe) a numeric string `"2"`
+resolves an `int`-backed enum, `StrictArrayReader` requires the exact backing type, and
+`LooseArrayReader` coerces any scalar. Only backed enums are supported.
+
 ## Helpers and JSON
 
 ```php

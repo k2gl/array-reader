@@ -7,6 +7,7 @@ namespace K2gl\ArrayReader\Tests;
 use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
 use K2gl\ArrayReader\LooseArrayReader;
+use K2gl\ArrayReader\Tests\Fixtures\Priority;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -96,5 +97,19 @@ final class LooseArrayReaderTest extends TestCase
     {
         fact(LooseArrayReader::of(['v' => null])->intOr('v', 5))->is(5);
         fact(LooseArrayReader::of(['v' => [1]])->intOr('v', 9))->is(9);
+    }
+
+    public function testEnumCoercesAnyScalarToBacking(): void
+    {
+        // Loose casting coerces the scalar to the enum's int backing before tryFrom.
+        fact(LooseArrayReader::of(['priority' => '2'])->enum('priority', Priority::class))->is(Priority::Medium);
+        fact(LooseArrayReader::of(['priority' => 3.0])->enum('priority', Priority::class))->is(Priority::High);
+    }
+
+    public function testEnumOrFallsBackWhenCoercedValueIsNotACase(): void
+    {
+        // 'abc' coerces to int 0, which is not a Priority case.
+        fact(LooseArrayReader::of(['priority' => 'abc'])->enumOr('priority', Priority::class, Priority::Low))
+            ->is(Priority::Low);
     }
 }

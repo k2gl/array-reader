@@ -8,6 +8,8 @@ use K2gl\ArrayReader\AbstractArrayReader;
 use K2gl\ArrayReader\Exception\MissingKeyException;
 use K2gl\ArrayReader\Exception\TypeMismatchException;
 use K2gl\ArrayReader\StrictArrayReader;
+use K2gl\ArrayReader\Tests\Fixtures\Priority;
+use K2gl\ArrayReader\Tests\Fixtures\Suit;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -111,5 +113,25 @@ final class StrictArrayReaderTest extends TestCase
         $this->expectException(TypeMismatchException::class);
 
         StrictArrayReader::of(['map' => ['a' => 1]])->list('map');
+    }
+
+    public function testEnumResolvesFromExactBackingType(): void
+    {
+        fact(StrictArrayReader::of(['suit' => 'clubs'])->enum('suit', Suit::class))->is(Suit::Clubs);
+        fact(StrictArrayReader::of(['priority' => 2])->enum('priority', Priority::class))->is(Priority::Medium);
+    }
+
+    public function testEnumOrFallsBackWhenBackingTypeMismatches(): void
+    {
+        // No casting: a numeric string is not the int backing of Priority.
+        fact(StrictArrayReader::of(['priority' => '2'])->enumOr('priority', Priority::class, Priority::Low))
+            ->is(Priority::Low);
+    }
+
+    public function testEnumThrowsWhenBackingTypeMismatches(): void
+    {
+        $this->expectException(TypeMismatchException::class);
+
+        StrictArrayReader::of(['priority' => '2'])->enum('priority', Priority::class);
     }
 }
