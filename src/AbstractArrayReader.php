@@ -77,7 +77,7 @@ abstract class AbstractArrayReader
 
     public function has(string|int $key): bool
     {
-        return array_key_exists($key, $this->data);
+        return ! $this->locate($key) instanceof Miss;
     }
 
     /**
@@ -101,7 +101,7 @@ abstract class AbstractArrayReader
      */
     public function stringOr(string|int $key, ?string $default = null): ?string
     {
-        $cast = $this->asString($this->data[$key] ?? null);
+        $cast = $this->asString($this->value($key));
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -127,7 +127,7 @@ abstract class AbstractArrayReader
      */
     public function intOr(string|int $key, ?int $default = null): ?int
     {
-        $cast = $this->asInt($this->data[$key] ?? null);
+        $cast = $this->asInt($this->value($key));
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -153,7 +153,7 @@ abstract class AbstractArrayReader
      */
     public function floatOr(string|int $key, ?float $default = null): ?float
     {
-        $cast = $this->asFloat($this->data[$key] ?? null);
+        $cast = $this->asFloat($this->value($key));
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -179,7 +179,7 @@ abstract class AbstractArrayReader
      */
     public function boolOr(string|int $key, ?bool $default = null): ?bool
     {
-        $cast = $this->asBool($this->data[$key] ?? null);
+        $cast = $this->asBool($this->value($key));
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -309,7 +309,7 @@ abstract class AbstractArrayReader
      */
     public function enumOr(string|int $key, string $enum, ?BackedEnum $default = null): ?BackedEnum
     {
-        $cast = $this->asEnum($this->data[$key] ?? null, $enum);
+        $cast = $this->asEnum($this->value($key), $enum);
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -340,7 +340,7 @@ abstract class AbstractArrayReader
      */
     public function dateTimeOr(string|int $key, ?DateTimeImmutable $default = null, ?string $format = null): ?DateTimeImmutable
     {
-        $cast = $this->asDateTime($this->data[$key] ?? null, $format);
+        $cast = $this->asDateTime($this->value($key), $format);
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -369,7 +369,7 @@ abstract class AbstractArrayReader
      */
     public function arrayOr(string|int $key, ?array $default = null): ?array
     {
-        $value = $this->data[$key] ?? null;
+        $value = $this->value($key);
 
         return is_array($value) ? $value : $default;
     }
@@ -400,7 +400,7 @@ abstract class AbstractArrayReader
      */
     public function listOr(string|int $key, ?array $default = null): ?array
     {
-        $value = $this->data[$key] ?? null;
+        $value = $this->value($key);
 
         return is_array($value) && array_is_list($value) ? $value : $default;
     }
@@ -418,7 +418,7 @@ abstract class AbstractArrayReader
 
     public function nestedOr(string|int $key): ?static
     {
-        $value = $this->data[$key] ?? null;
+        $value = $this->value($key);
 
         return is_array($value) ? new static($value) : null;
     }
@@ -455,7 +455,7 @@ abstract class AbstractArrayReader
      */
     public function nestedListOr(string|int $key): ?array
     {
-        $value = $this->data[$key] ?? null;
+        $value = $this->value($key);
 
         if (! is_array($value) || ! array_is_list($value)) {
             return null;
@@ -487,11 +487,52 @@ abstract class AbstractArrayReader
      */
     private function requireKey(string|int $key): mixed
     {
-        if (! array_key_exists($key, $this->data)) {
+        $value = $this->locate($key);
+
+        if ($value instanceof Miss) {
             throw MissingKeyException::forKey($key);
         }
 
-        return $this->data[$key];
+        return $value;
+    }
+
+    /**
+     * Resolve a key to its value. A literal key always wins (so keys that contain
+     * dots keep working); only when it is absent is a string key split on "." and
+     * walked as a path into nested arrays. Returns {@see Miss} when nothing matches.
+     */
+    private function locate(string|int $key): mixed
+    {
+        if (array_key_exists($key, $this->data)) {
+            return $this->data[$key];
+        }
+
+        if (! is_string($key) || ! str_contains($key, '.')) {
+            return Miss::Value;
+        }
+
+        $current = $this->data;
+
+        foreach (explode('.', $key) as $segment) {
+            if (! is_array($current) || ! array_key_exists($segment, $current)) {
+                return Miss::Value;
+            }
+
+            $current = $current[$segment];
+        }
+
+        return $current;
+    }
+
+    /**
+     * Resolved value for lenient accessors: the value at the key/path, or null
+     * when it is absent (matching how a present null is treated).
+     */
+    private function value(string|int $key): mixed
+    {
+        $value = $this->locate($key);
+
+        return $value instanceof Miss ? null : $value;
     }
 
     /**
@@ -530,7 +571,7 @@ abstract class AbstractArrayReader
      */
     private function castListOr(string|int $key, Closure $caster): ?array
     {
-        $value = $this->data[$key] ?? null;
+        $value = $this->value($key);
 
         if (! is_array($value) || ! array_is_list($value)) {
             return null;

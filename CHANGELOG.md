@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0
+
+Add dot-notation support to every key-based accessor (`has()`, scalar getters, `enum()`,
+`dateTime()`, `nested()`, list accessors): a key like `'user.profile.age'` walks nested arrays.
+Backward compatible — a literal key always wins, and a path is only walked when no literal key
+matches, so keys that contain dots keep resolving to themselves.
+
 ## 2.4.0
 
 Add `dateTime()` / `dateTimeOr()` to read a date/time string into a `DateTimeImmutable`. The value
