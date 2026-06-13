@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0
+
+Add `nestedList()` / `nestedListOr()` to read a list of nested arrays as a `list` of readers of the
+same kind — the common "array of objects" payload. The strict accessor throws `MissingKeyException`
+/ `TypeMismatchException` when the key is absent, the value is not a list, or an element is not an
+array; `nestedListOr()` returns `null` in those cases.
+
 ## 2.2.0
 
 Add typed scalar list accessors `ints()` / `strings()` / `floats()` / `bools()` and their lenient
