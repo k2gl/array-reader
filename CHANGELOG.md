@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0
+
+Add lazy-default scalar accessors `stringOrElse()` / `intOrElse()` / `floatOrElse()` /
+`boolOrElse()` — the default comes from a callback invoked only when the value cannot be produced —
+and `require(array $keys): static`, which asserts a set of keys is present (dot paths allowed),
+failing once with all the missing keys via `MissingKeyException::forKeys()` and returning the reader
+for chaining.
+
 ## 2.5.0
 
 Add dot-notation support to every key-based accessor (`has()`, scalar getters, `enum()`,

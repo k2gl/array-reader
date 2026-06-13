@@ -223,6 +223,23 @@ $reader->intOr('user.profile.missing', 0);   // 0
 ArrayReader::of(['a.b' => 1, 'a' => ['b' => 2]])->int('a.b'); // 1
 ```
 
+## Lazy defaults and required keys
+
+`stringOrElse()` / `intOrElse()` / `floatOrElse()` / `boolOrElse()` work like the `*Or` accessors,
+but the default comes from a callback that runs **only** when the value cannot be produced — handy
+when computing the default is expensive.
+
+`require()` asserts that a set of keys (dot paths allowed) is present, failing once with **all** the
+missing keys instead of one at a time, and returns the reader for chaining.
+
+```php
+$reader->intOrElse('page', fn (): int => $this->countPages());  // callback only runs when 'page' is absent / invalid
+
+ArrayReader::of($payload)
+    ->require(['id', 'user.email'])     // throws MissingKeyException listing every missing key
+    ->string('user.email');
+```
+
 ## Helpers and JSON
 
 ```php
