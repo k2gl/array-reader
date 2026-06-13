@@ -12,6 +12,7 @@ use Stringable;
 use BackedEnum;
 use ReflectionEnum;
 use ReflectionNamedType;
+use Closure;
 
 /**
  * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
@@ -182,6 +183,96 @@ abstract class AbstractArrayReader
     }
 
     /**
+     * Read a list of ints: the value at `$key` must be a list, and every element
+     * is produced through the cast pipeline (so the reader's mode applies).
+     *
+     * @return list<int>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function ints(string|int $key): array
+    {
+        return $this->castList($key, 'int', fn (mixed $value): int|Miss => $this->asInt($value));
+    }
+
+    /**
+     * Returns `$default` when the key is absent, the value is not a list, or any
+     * element cannot be produced.
+     *
+     * @param list<int>|null $default
+     *
+     * @return ($default is null ? list<int>|null : list<int>)
+     */
+    public function intsOr(string|int $key, ?array $default = null): ?array
+    {
+        return $this->castListOr($key, fn (mixed $value): int|Miss => $this->asInt($value)) ?? $default;
+    }
+
+    /**
+     * @return list<string>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function strings(string|int $key): array
+    {
+        return $this->castList($key, 'string', fn (mixed $value): string|Miss => $this->asString($value));
+    }
+
+    /**
+     * @param list<string>|null $default
+     *
+     * @return ($default is null ? list<string>|null : list<string>)
+     */
+    public function stringsOr(string|int $key, ?array $default = null): ?array
+    {
+        return $this->castListOr($key, fn (mixed $value): string|Miss => $this->asString($value)) ?? $default;
+    }
+
+    /**
+     * @return list<float>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function floats(string|int $key): array
+    {
+        return $this->castList($key, 'float', fn (mixed $value): float|Miss => $this->asFloat($value));
+    }
+
+    /**
+     * @param list<float>|null $default
+     *
+     * @return ($default is null ? list<float>|null : list<float>)
+     */
+    public function floatsOr(string|int $key, ?array $default = null): ?array
+    {
+        return $this->castListOr($key, fn (mixed $value): float|Miss => $this->asFloat($value)) ?? $default;
+    }
+
+    /**
+     * @return list<bool>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function bools(string|int $key): array
+    {
+        return $this->castList($key, 'bool', fn (mixed $value): bool|Miss => $this->asBool($value));
+    }
+
+    /**
+     * @param list<bool>|null $default
+     *
+     * @return ($default is null ? list<bool>|null : list<bool>)
+     */
+    public function boolsOr(string|int $key, ?array $default = null): ?array
+    {
+        return $this->castListOr($key, fn (mixed $value): bool|Miss => $this->asBool($value)) ?? $default;
+    }
+
+    /**
      * Read a backed enum: the enum's backing scalar is produced through the cast
      * pipeline (so the reader's mode applies), then resolved with `tryFrom()`.
      *
@@ -317,6 +408,63 @@ abstract class AbstractArrayReader
         }
 
         return $this->data[$key];
+    }
+
+    /**
+     * @template T
+     *
+     * @param Closure(mixed): (T|Miss) $caster
+     *
+     * @return list<T>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    private function castList(string|int $key, string $type, Closure $caster): array
+    {
+        $result = [];
+
+        foreach ($this->list($key) as $index => $element) {
+            $value = $caster($element);
+
+            if ($value instanceof Miss) {
+                throw TypeMismatchException::expected($type, $key . '[' . $index . ']', $element);
+            }
+
+            $result[] = $value;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @template T
+     *
+     * @param Closure(mixed): (T|Miss) $caster
+     *
+     * @return list<T>|null
+     */
+    private function castListOr(string|int $key, Closure $caster): ?array
+    {
+        $value = $this->data[$key] ?? null;
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            return null;
+        }
+
+        $result = [];
+
+        foreach ($value as $element) {
+            $cast = $caster($element);
+
+            if ($cast instanceof Miss) {
+                return null;
+            }
+
+            $result[] = $cast;
+        }
+
+        return $result;
     }
 
     private function asString(mixed $value): string|Miss
