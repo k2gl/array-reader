@@ -134,6 +134,19 @@ $config->listOr('tags', []);
 $config->nestedOr('database');           // ?reader
 ```
 
+Read a list of nested objects (`{"items": [{...}, {...}]}`) as a list of readers with
+`nestedList()` / `nestedListOr()`:
+
+```php
+$payload = ArrayReader::of(['items' => [['id' => 1], ['id' => 2]]]);
+
+foreach ($payload->nestedList('items') as $item) {
+    $item->int('id');                    // each element is a reader of the same kind
+}
+
+$payload->nestedListOr('missing');       // null when absent, not a list, or an element is not an array
+```
+
 ## Typed scalar lists
 
 `ints()`, `strings()`, `floats()` and `bools()` read a list and produce every element through the
