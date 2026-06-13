@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.0
+
+Add `dateTime()` / `dateTimeOr()` to read a date/time string into a `DateTimeImmutable`. The value
+is read as a string through the cast pipeline, then parsed: without a format any
+`DateTimeImmutable`-parsable string is accepted; with a format the input must match it exactly
+(surplus characters or parse warnings are rejected). Strict throws `MissingKeyException` /
+`TypeMismatchException`; `dateTimeOr()` returns the default.
+
 ## 2.3.0
 
 Add `nestedList()` / `nestedListOr()` to read a list of nested arrays as a `list` of readers of the

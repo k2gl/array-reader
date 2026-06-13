@@ -13,6 +13,8 @@ use BackedEnum;
 use ReflectionEnum;
 use ReflectionNamedType;
 use Closure;
+use DateTimeImmutable;
+use Exception;
 
 /**
  * Immutable, type-safe reader for a "mixed" array — decoded JSON, CSV rows,
@@ -308,6 +310,37 @@ abstract class AbstractArrayReader
     public function enumOr(string|int $key, string $enum, ?BackedEnum $default = null): ?BackedEnum
     {
         $cast = $this->asEnum($this->data[$key] ?? null, $enum);
+
+        return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * Read a date/time string. The value is read as a string through the cast
+     * pipeline, then parsed. Without `$format` any `DateTimeImmutable`-parsable
+     * string is accepted (ISO-8601, relative, `@timestamp`); with `$format` the
+     * string must match it exactly (no surplus, no parse warnings).
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function dateTime(string|int $key, ?string $format = null): DateTimeImmutable
+    {
+        $value = $this->requireKey($key);
+        $cast = $this->asDateTime($value, $format);
+
+        if ($cast instanceof Miss) {
+            throw TypeMismatchException::expected('DateTimeImmutable', $key, $value);
+        }
+
+        return $cast;
+    }
+
+    /**
+     * @return ($default is null ? DateTimeImmutable|null : DateTimeImmutable)
+     */
+    public function dateTimeOr(string|int $key, ?DateTimeImmutable $default = null, ?string $format = null): ?DateTimeImmutable
+    {
+        $cast = $this->asDateTime($this->data[$key] ?? null, $format);
 
         return $cast instanceof Miss ? $default : $cast;
     }
@@ -666,5 +699,31 @@ abstract class AbstractArrayReader
         }
 
         return $enum::tryFrom($scalar) ?? Miss::Value;
+    }
+
+    private function asDateTime(mixed $value, ?string $format): DateTimeImmutable|Miss
+    {
+        $string = $this->asString($value);
+
+        if ($string instanceof Miss || $string === '') {
+            return Miss::Value;
+        }
+
+        if ($format !== null) {
+            $dateTime = DateTimeImmutable::createFromFormat($format, $string);
+            $errors = DateTimeImmutable::getLastErrors();
+
+            if ($dateTime === false || ($errors !== false && $errors['warning_count'] + $errors['error_count'] > 0)) {
+                return Miss::Value;
+            }
+
+            return $dateTime;
+        }
+
+        try {
+            return new DateTimeImmutable($string);
+        } catch (Exception) {
+            return Miss::Value;
+        }
     }
 }
