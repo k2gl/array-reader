@@ -134,6 +134,26 @@ $config->listOr('tags', []);
 $config->nestedOr('database');           // ?reader
 ```
 
+## Typed scalar lists
+
+`ints()`, `strings()`, `floats()` and `bools()` read a list and produce every element through the
+same cast pipeline as the scalar accessors, so the reader's mode applies element by element. They
+turn `ids[]=1&ids[]=2`, CSV columns or JSON arrays into a `list<int>` / `list<string>` / … without
+a manual `array_map()`.
+
+```php
+$query = ArrayReader::of(['ids' => ['1', '2', '3'], 'tags' => ['php', 'json']]);
+
+$query->ints('ids');         // list<int>    => [1, 2, 3]   ('1' cast in safe mode)
+$query->strings('tags');     // list<string> => ['php', 'json']
+
+// strict variant throws TypeMismatchException if any element cannot be produced;
+// lenient *Or returns the default when the key is absent, the value is not a list,
+// or any element cannot be produced (all-or-nothing):
+$query->intsOr('ids', []);   // list<int>
+$query->floatsOr('missing'); // null
+```
+
 ## Enums
 
 `enum()` / `enumOr()` read a **backed enum**: the enum's backing scalar is produced through the
