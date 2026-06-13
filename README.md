@@ -204,6 +204,25 @@ $row->dateTimeOr('missing');               // ?DateTimeImmutable (null when abse
 $row->dateTimeOr('day', null, 'Y-m-d');    // pass a format as the third argument
 ```
 
+## Nested keys (dot notation)
+
+Every key-based accessor (`has()`, the scalar getters, `enum()`, `dateTime()`, `nested()`, the list
+accessors, …) accepts a dot path into nested arrays. A **literal key always wins** — a key that
+contains a dot keeps resolving to itself — and the path is only walked when no literal key matches,
+so this is fully backward compatible.
+
+```php
+$reader = ArrayReader::of(['user' => ['profile' => ['age' => 30]]]);
+
+$reader->int('user.profile.age');     // 30
+$reader->has('user.profile.age');     // true
+$reader->nested('user.profile')->int('age'); // 30
+$reader->intOr('user.profile.missing', 0);   // 0
+
+// A literal "a.b" key still wins over the a -> b path:
+ArrayReader::of(['a.b' => 1, 'a' => ['b' => 2]])->int('a.b'); // 1
+```
+
 ## Helpers and JSON
 
 ```php
