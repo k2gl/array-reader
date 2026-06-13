@@ -81,6 +81,32 @@ abstract class AbstractArrayReader
     }
 
     /**
+     * Assert that every given key is present (dot paths allowed), failing once
+     * with all the missing keys rather than one at a time. Returns the reader for
+     * chaining.
+     *
+     * @param list<string|int> $keys
+     *
+     * @throws MissingKeyException
+     */
+    public function require(array $keys): static
+    {
+        $missing = [];
+
+        foreach ($keys as $key) {
+            if (! $this->has($key)) {
+                $missing[] = $key;
+            }
+        }
+
+        if ($missing) {
+            throw MissingKeyException::forKeys($missing);
+        }
+
+        return $this;
+    }
+
+    /**
      * @throws MissingKeyException
      * @throws TypeMismatchException
      */
@@ -272,6 +298,49 @@ abstract class AbstractArrayReader
     public function boolsOr(string|int $key, ?array $default = null): ?array
     {
         return $this->castListOr($key, fn (mixed $value): bool|Miss => $this->asBool($value)) ?? $default;
+    }
+
+    /**
+     * Like `stringOr()`, but the default is produced by a callback only when the
+     * value cannot be produced — for defaults that are expensive to compute.
+     *
+     * @param callable(): string $default
+     */
+    public function stringOrElse(string|int $key, callable $default): string
+    {
+        $cast = $this->asString($this->value($key));
+
+        return $cast instanceof Miss ? $default() : $cast;
+    }
+
+    /**
+     * @param callable(): int $default
+     */
+    public function intOrElse(string|int $key, callable $default): int
+    {
+        $cast = $this->asInt($this->value($key));
+
+        return $cast instanceof Miss ? $default() : $cast;
+    }
+
+    /**
+     * @param callable(): float $default
+     */
+    public function floatOrElse(string|int $key, callable $default): float
+    {
+        $cast = $this->asFloat($this->value($key));
+
+        return $cast instanceof Miss ? $default() : $cast;
+    }
+
+    /**
+     * @param callable(): bool $default
+     */
+    public function boolOrElse(string|int $key, callable $default): bool
+    {
+        $cast = $this->asBool($this->value($key));
+
+        return $cast instanceof Miss ? $default() : $cast;
     }
 
     /**
