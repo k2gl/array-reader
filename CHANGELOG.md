@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0
+
+Add typed scalar list accessors `ints()` / `strings()` / `floats()` / `bools()` and their lenient
+`*Or` variants. Each reads a list and produces every element through the same cast pipeline as the
+scalar accessors (so the reader's cast mode applies per element). The strict accessors throw
+`TypeMismatchException` when an element cannot be produced; the `*Or` accessors return the default
+when the key is absent, the value is not a list, or any element cannot be produced.
+
 ## 2.1.0
 
 Add `enum()` / `enumOr()` accessors for backed enums. They read the enum's backing scalar through
