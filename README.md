@@ -188,6 +188,22 @@ The cast mode applies to the backing scalar: with `ArrayReader` (safe) a numeric
 resolves an `int`-backed enum, `StrictArrayReader` requires the exact backing type, and
 `LooseArrayReader` coerces any scalar. Only backed enums are supported.
 
+## Dates
+
+`dateTime()` / `dateTimeOr()` read a date/time string into a `DateTimeImmutable`. The value is read
+as a string through the cast pipeline, then parsed. Without a format any `DateTimeImmutable`-parsable
+string is accepted (ISO-8601, relative, `@timestamp`); pass a format and the input must match it
+exactly — surplus characters or parse warnings are rejected.
+
+```php
+$row = ArrayReader::of(['created_at' => '2024-01-15T10:30:00+00:00', 'day' => '15/01/2024']);
+
+$row->dateTime('created_at');              // DateTimeImmutable (throws if missing / unparsable)
+$row->dateTime('day', 'd/m/Y');            // DateTimeImmutable, strict to the format
+$row->dateTimeOr('missing');               // ?DateTimeImmutable (null when absent / unparsable)
+$row->dateTimeOr('day', null, 'Y-m-d');    // pass a format as the third argument
+```
+
 ## Helpers and JSON
 
 ```php
