@@ -391,6 +391,57 @@ abstract class AbstractArrayReader
     }
 
     /**
+     * Read a list of nested arrays, each wrapped in a reader of the same kind —
+     * the common "array of objects" payload (`{"items": [{...}, {...}]}`).
+     *
+     * @return list<static>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function nestedList(string|int $key): array
+    {
+        $result = [];
+
+        foreach ($this->list($key) as $index => $element) {
+            if (! is_array($element)) {
+                throw TypeMismatchException::expected('array', $key . '[' . $index . ']', $element);
+            }
+
+            $result[] = new static($element);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns `null` when the key is absent, the value is not a list, or any
+     * element is not an array.
+     *
+     * @return list<static>|null
+     */
+    public function nestedListOr(string|int $key): ?array
+    {
+        $value = $this->data[$key] ?? null;
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            return null;
+        }
+
+        $result = [];
+
+        foreach ($value as $element) {
+            if (! is_array($element)) {
+                return null;
+            }
+
+            $result[] = new static($element);
+        }
+
+        return $result;
+    }
+
+    /**
      * @return array<array-key, mixed>
      */
     public function toArray(): array
