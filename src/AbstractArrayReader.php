@@ -384,6 +384,68 @@ abstract class AbstractArrayReader
     }
 
     /**
+     * Read a list of backed enums: each element's backing scalar is produced
+     * through the cast pipeline (so the reader's mode applies), then resolved
+     * with `tryFrom()`.
+     *
+     * @template T of \BackedEnum
+     *
+     * @param class-string<T> $enum
+     *
+     * @return list<T>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function enums(string|int $key, string $enum): array
+    {
+        $result = [];
+
+        foreach ($this->list($key) as $index => $element) {
+            $cast = $this->asEnum($element, $enum);
+
+            if ($cast instanceof Miss) {
+                throw TypeMismatchException::expected($enum, $key . '[' . $index . ']', $element);
+            }
+            $result[] = $cast;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns `$default` when the key is absent, the value is not a list, or any
+     * element cannot be resolved to the enum.
+     *
+     * @template T of \BackedEnum
+     *
+     * @param class-string<T> $enum
+     * @param list<T>|null    $default
+     *
+     * @return ($default is null ? list<T>|null : list<T>)
+     */
+    public function enumsOr(string|int $key, string $enum, ?array $default = null): ?array
+    {
+        $value = $this->value($key);
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            return $default;
+        }
+        $result = [];
+
+        foreach ($value as $element) {
+            $cast = $this->asEnum($element, $enum);
+
+            if ($cast instanceof Miss) {
+                return $default;
+            }
+            $result[] = $cast;
+        }
+
+        return $result;
+    }
+
+    /**
      * Read a date/time string. The value is read as a string through the cast
      * pipeline, then parsed. Without `$format` any `DateTimeImmutable`-parsable
      * string is accepted (ISO-8601, relative, `@timestamp`); with `$format` the
@@ -412,6 +474,30 @@ abstract class AbstractArrayReader
         $cast = $this->asDateTime($this->value($key), $format);
 
         return $cast instanceof Miss ? $default : $cast;
+    }
+
+    /**
+     * Read a list of date/time strings; each element is read as a string through
+     * the cast pipeline and parsed (see {@see dateTime()} for the `$format` rules).
+     *
+     * @return list<DateTimeImmutable>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function dateTimes(string|int $key, ?string $format = null): array
+    {
+        return $this->castList($key, 'DateTimeImmutable', fn (mixed $value): DateTimeImmutable|Miss => $this->asDateTime($value, $format));
+    }
+
+    /**
+     * @param list<DateTimeImmutable>|null $default
+     *
+     * @return ($default is null ? list<DateTimeImmutable>|null : list<DateTimeImmutable>)
+     */
+    public function dateTimesOr(string|int $key, ?array $default = null, ?string $format = null): ?array
+    {
+        return $this->castListOr($key, fn (mixed $value): DateTimeImmutable|Miss => $this->asDateTime($value, $format)) ?? $default;
     }
 
     /**
@@ -541,6 +627,44 @@ abstract class AbstractArrayReader
         }
 
         return $result;
+    }
+
+    /**
+     * Read a list and map each element through `$caster` — turn an "array of
+     * objects" payload into a list of typed values (DTOs, value objects, …). The
+     * caster receives each raw element; throw inside it to reject one.
+     *
+     * @template T
+     *
+     * @param callable(mixed): T $caster
+     *
+     * @return list<T>
+     *
+     * @throws MissingKeyException
+     * @throws TypeMismatchException
+     */
+    public function listOf(string|int $key, callable $caster): array
+    {
+        return array_map($caster, $this->list($key));
+    }
+
+    /**
+     * Returns `$default` when the key is absent or the value is not a list. When
+     * it is a list, `$caster` runs on each element (any exception it throws
+     * propagates).
+     *
+     * @template T
+     *
+     * @param callable(mixed): T $caster
+     * @param list<T>|null       $default
+     *
+     * @return ($default is null ? list<T>|null : list<T>)
+     */
+    public function listOfOr(string|int $key, callable $caster, ?array $default = null): ?array
+    {
+        $list = $this->listOr($key);
+
+        return $list === null ? $default : array_map($caster, $list);
     }
 
     /**
