@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0
+
+Add collection casters that turn a list into typed values without a manual `array_map()`:
+`enums()` / `enumsOr()` (list of backed enums), `dateTimes()` / `dateTimesOr()` (list of
+`DateTimeImmutable`), and the generic `listOf()` / `listOfOr()` (map each element through a
+caster of your own — the "array of objects to DTOs" payload). All follow the existing
+strict-vs-`*Or` convention, and the per-element casters honour the reader's cast mode.
+
 ## 2.6.0
 
 Add lazy-default scalar accessors `stringOrElse()` / `intOrElse()` / `floatOrElse()` /

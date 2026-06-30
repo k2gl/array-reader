@@ -167,6 +167,16 @@ $query->intsOr('ids', []);   // list<int>
 $query->floatsOr('missing'); // null
 ```
 
+For lists of enums or dates see the sections below; for any other element type `listOf()` maps
+each element of a list through a caster of your own — the "array of objects to DTOs" payload:
+
+```php
+$payload = ArrayReader::of(['points' => [['x' => 1], ['x' => 2]]]);
+
+$payload->listOf('points', fn (mixed $p) => Point::fromArray((array) $p));  // list<Point>
+$payload->listOfOr('points', $caster, []);   // default when absent / not a list (caster not run)
+```
+
 ## Enums
 
 `enum()` / `enumOr()` read a **backed enum**: the enum's backing scalar is produced through the
@@ -182,6 +192,9 @@ $card = ArrayReader::of($row);
 $card->enum('suit', Suit::class);                 // Suit  (throws if missing / not a valid case)
 $card->enumOr('suit', Suit::class);               // ?Suit (null when absent / invalid)
 $card->enumOr('suit', Suit::class, Suit::Hearts); // Suit  (Suit::Hearts when absent / invalid)
+
+$deck->enums('suits', Suit::class);               // list<Suit>  (strict: throws on a bad element)
+$deck->enumsOr('suits', Suit::class, []);         // list<Suit>  (default when absent / any element invalid)
 ```
 
 The cast mode applies to the backing scalar: with `ArrayReader` (safe) a numeric string `"2"`
@@ -202,6 +215,9 @@ $row->dateTime('created_at');              // DateTimeImmutable (throws if missi
 $row->dateTime('day', 'd/m/Y');            // DateTimeImmutable, strict to the format
 $row->dateTimeOr('missing');               // ?DateTimeImmutable (null when absent / unparsable)
 $row->dateTimeOr('day', null, 'Y-m-d');    // pass a format as the third argument
+
+$log->dateTimes('timestamps');             // list<DateTimeImmutable> (strict: throws on a bad element)
+$log->dateTimesOr('timestamps', []);       // list<DateTimeImmutable> (default when absent / any unparsable)
 ```
 
 ## Nested keys (dot notation)
