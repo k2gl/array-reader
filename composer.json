@@ -1,6 +1,6 @@
 {
   "name": "k2gl/array-reader",
-  "description": "Tiny, zero-dependency typed reader for mixed arrays (decoded JSON, CSV rows, config, request payloads) with strict and lenient access.",
+  "description": "Read typed values from untyped arrays (JSON, CSV, config, request data) in PHP, with strict and lenient modes.",
   "homepage": "https://github.com/k2gl/array-reader",
   "type": "library",
   "license": "MIT",
