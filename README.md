@@ -303,4 +303,4 @@ dependency-light.
 
 ## License
 
-MIT © Nickolay Harin. See [LICENSE](LICENSE).
+MIT © Nick Harin. See [LICENSE](LICENSE).
