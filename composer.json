@@ -1,6 +1,6 @@
 {
   "name": "k2gl/array-reader",
-  "description": "Read typed values from untyped arrays (JSON, CSV, config, request data) in PHP, with strict and lenient modes.",
+  "description": "Read typed values from untyped arrays (JSON, CSV, config, request data) in PHP, with strict and lenient modes",
   "homepage": "https://github.com/k2gl/array-reader",
   "type": "library",
   "license": "MIT",
