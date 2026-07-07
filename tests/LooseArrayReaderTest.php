@@ -80,9 +80,8 @@ final class LooseArrayReaderTest extends TestCase
     #[DataProvider('nonScalarProvider')]
     public function testNonScalarValueIsRejected(mixed $input): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        LooseArrayReader::of(['v' => $input])->int('v');
+        // act + assert
+        fact(static fn () => LooseArrayReader::of(['v' => $input])->int('v'))->throws(TypeMismatchException::class);
     }
 
     public static function nonScalarProvider(): array

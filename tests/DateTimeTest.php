@@ -43,30 +43,28 @@ final class DateTimeTest extends TestCase
 
     public function testThrowsOnMissingKey(): void
     {
-        $this->expectException(MissingKeyException::class);
-
-        ArrayReader::of([])->dateTime('at');
+        // act + assert
+        fact(static fn () => ArrayReader::of([])->dateTime('at'))->throws(MissingKeyException::class);
     }
 
     public function testThrowsOnUnparsableStringWithoutFormat(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['at' => 'not a date'])->dateTime('at');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['at' => 'not a date'])->dateTime('at'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testThrowsOnEmptyString(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['at' => ''])->dateTime('at');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['at' => ''])->dateTime('at'))->throws(TypeMismatchException::class);
     }
 
     public function testThrowsWhenInputDoesNotMatchFormat(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['day' => '2024-01-15 trailing'])->dateTime('day', 'Y-m-d');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['day' => '2024-01-15 trailing'])->dateTime('day', 'Y-m-d'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testOrReturnsDefaultOnMissingKey(): void

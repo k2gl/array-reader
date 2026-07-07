@@ -66,9 +66,9 @@ final class DotNotationTest extends TestCase
 
     public function testStrictThrowsOnMissingPath(): void
     {
-        $this->expectException(MissingKeyException::class);
-
-        ArrayReader::of(['user' => ['profile' => []]])->int('user.profile.age');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['user' => ['profile' => []]])->int('user.profile.age'))
+            ->throws(MissingKeyException::class);
     }
 
     public function testPathThroughNonArrayIsMissing(): void

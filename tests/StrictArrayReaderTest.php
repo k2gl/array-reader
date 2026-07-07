@@ -80,39 +80,35 @@ final class StrictArrayReaderTest extends TestCase
 
     public function testStringThrowsOnMissingKey(): void
     {
-        $this->expectException(MissingKeyException::class);
-        $this->expectExceptionMessage('Missing required key "email".');
-
-        StrictArrayReader::of([])->string('email');
+        // act + assert
+        fact(static fn () => StrictArrayReader::of([])->string('email'))
+            ->throws(MissingKeyException::class, 'Missing required key "email".');
     }
 
     public function testThrowsOnTypeMismatch(): void
     {
-        $this->expectException(TypeMismatchException::class);
-        $this->expectExceptionMessage('Expected "string" at key "age", got "int".');
-
-        StrictArrayReader::of(['age' => 36])->string('age');
+        // act + assert
+        fact(static fn () => StrictArrayReader::of(['age' => 36])->string('age'))
+            ->throws(TypeMismatchException::class, 'Expected "string" at key "age", got "int".');
     }
 
     public function testNumericStringIsNotAccepted(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        StrictArrayReader::of(['age' => '36'])->int('age');
+        // act + assert
+        fact(static fn () => StrictArrayReader::of(['age' => '36'])->int('age'))->throws(TypeMismatchException::class);
     }
 
     public function testIntRejectsFloat(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        StrictArrayReader::of(['n' => 1.5])->int('n');
+        // act + assert
+        fact(static fn () => StrictArrayReader::of(['n' => 1.5])->int('n'))->throws(TypeMismatchException::class);
     }
 
     public function testListRejectsAssociativeArray(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        StrictArrayReader::of(['map' => ['a' => 1]])->list('map');
+        // act + assert
+        fact(static fn () => StrictArrayReader::of(['map' => ['a' => 1]])->list('map'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testEnumResolvesFromExactBackingType(): void
@@ -130,8 +126,8 @@ final class StrictArrayReaderTest extends TestCase
 
     public function testEnumThrowsWhenBackingTypeMismatches(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        StrictArrayReader::of(['priority' => '2'])->enum('priority', Priority::class);
+        // act + assert
+        fact(static fn () => StrictArrayReader::of(['priority' => '2'])->enum('priority', Priority::class))
+            ->throws(TypeMismatchException::class);
     }
 }
