@@ -97,9 +97,8 @@ final class ArrayReaderTest extends TestCase
     #[DataProvider('uncastableProvider')]
     public function testStrictAccessorThrowsOnUncastableValue(string $type, mixed $input): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['v' => $input])->{$type}('v');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['v' => $input])->{$type}('v'))->throws(TypeMismatchException::class);
     }
 
     public static function uncastableProvider(): array
@@ -179,15 +178,15 @@ final class ArrayReaderTest extends TestCase
 
     public function testEnumThrowsOnUnknownCase(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['suit' => 'jokers'])->enum('suit', Suit::class);
+        // act + assert
+        fact(static fn () => ArrayReader::of(['suit' => 'jokers'])->enum('suit', Suit::class))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testEnumThrowsOnNonScalar(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['suit' => ['spades']])->enum('suit', Suit::class);
+        // act + assert
+        fact(static fn () => ArrayReader::of(['suit' => ['spades']])->enum('suit', Suit::class))
+            ->throws(TypeMismatchException::class);
     }
 }

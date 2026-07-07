@@ -44,31 +44,28 @@ final class TypedListsTest extends TestCase
 
     public function testThrowsWhenAnElementCannotBeProduced(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['ids' => [1, 'not-a-number', 3]])->ints('ids');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['ids' => [1, 'not-a-number', 3]])->ints('ids'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testThrowsOnMissingKey(): void
     {
-        $this->expectException(MissingKeyException::class);
-
-        ArrayReader::of([])->ints('ids');
+        // act + assert
+        fact(static fn () => ArrayReader::of([])->ints('ids'))->throws(MissingKeyException::class);
     }
 
     public function testThrowsWhenValueIsNotAList(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['ids' => ['a' => 1]])->ints('ids');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['ids' => ['a' => 1]])->ints('ids'))->throws(TypeMismatchException::class);
     }
 
     public function testStrictModeRejectsCastableElements(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        // '1' is a numeric string, accepted by Safe but not by Strict.
-        StrictArrayReader::of(['ids' => ['1', '2']])->ints('ids');
+        // act + assert: '1' is a numeric string, accepted by Safe but not by Strict.
+        fact(static fn () => StrictArrayReader::of(['ids' => ['1', '2']])->ints('ids'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testLooseModeCastsAnyScalarElement(): void

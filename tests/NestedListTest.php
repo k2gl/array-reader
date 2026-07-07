@@ -42,23 +42,22 @@ final class NestedListTest extends TestCase
 
     public function testThrowsOnMissingKey(): void
     {
-        $this->expectException(MissingKeyException::class);
-
-        ArrayReader::of([])->nestedList('items');
+        // act + assert
+        fact(static fn () => ArrayReader::of([])->nestedList('items'))->throws(MissingKeyException::class);
     }
 
     public function testThrowsWhenValueIsNotAList(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['items' => ['id' => 1]])->nestedList('items');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['items' => ['id' => 1]])->nestedList('items'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testThrowsWhenAnElementIsNotAnArray(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['items' => [['id' => 1], 'oops']])->nestedList('items');
+        // act + assert
+        fact(static fn () => ArrayReader::of(['items' => [['id' => 1], 'oops']])->nestedList('items'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testOrReturnsNullOnMissingKey(): void

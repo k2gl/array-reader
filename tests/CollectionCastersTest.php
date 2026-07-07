@@ -44,16 +44,15 @@ final class CollectionCastersTest extends TestCase
 
     public function testEnumsThrowsOnUnknownCase(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['suits' => ['hearts', 'wizard']])->enums('suits', Suit::class);
+        // act + assert
+        fact(static fn () => ArrayReader::of(['suits' => ['hearts', 'wizard']])->enums('suits', Suit::class))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testEnumsThrowsOnMissingKey(): void
     {
-        $this->expectException(MissingKeyException::class);
-
-        ArrayReader::of([])->enums('suits', Suit::class);
+        // act + assert
+        fact(static fn () => ArrayReader::of([])->enums('suits', Suit::class))->throws(MissingKeyException::class);
     }
 
     public function testEnumsOrFallsBackToDefault(): void
@@ -72,10 +71,9 @@ final class CollectionCastersTest extends TestCase
 
     public function testDateTimesHonoursAnExplicitFormat(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        // '2026-01-01' does not match the d/m/Y format.
-        ArrayReader::of(['dates' => ['01/01/2026', '2026-01-01']])->dateTimes('dates', 'd/m/Y');
+        // act + assert: '2026-01-01' does not match the d/m/Y format.
+        fact(static fn () => ArrayReader::of(['dates' => ['01/01/2026', '2026-01-01']])->dateTimes('dates', 'd/m/Y'))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testDateTimesOrFallsBackToDefault(): void
@@ -95,18 +93,17 @@ final class CollectionCastersTest extends TestCase
 
     public function testListOfThrowsOnMissingKeyOrNonList(): void
     {
-        $this->expectException(TypeMismatchException::class);
-
-        ArrayReader::of(['items' => ['a' => 1]])->listOf('items', static fn (mixed $v): mixed => $v);
+        // act + assert
+        fact(static fn () => ArrayReader::of(['items' => ['a' => 1]])->listOf('items', static fn (mixed $v): mixed => $v))
+            ->throws(TypeMismatchException::class);
     }
 
     public function testListOfPropagatesCasterExceptions(): void
     {
-        $this->expectException(RuntimeException::class);
-
-        ArrayReader::of(['items' => [1, 2]])->listOf('items', static function (mixed $v): int {
+        // act + assert
+        fact(static fn () => ArrayReader::of(['items' => [1, 2]])->listOf('items', static function (mixed $v): int {
             throw new RuntimeException('boom');
-        });
+        }))->throws(RuntimeException::class);
     }
 
     public function testListOfOrFallsBackWithoutRunningTheCaster(): void

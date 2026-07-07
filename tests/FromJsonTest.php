@@ -38,16 +38,14 @@ final class FromJsonTest extends TestCase
 
     public function testThrowsOnMalformedJson(): void
     {
-        $this->expectException(InvalidJsonException::class);
-
-        ArrayReader::fromJson('{not valid');
+        // act + assert
+        fact(static fn () => ArrayReader::fromJson('{not valid'))->throws(InvalidJsonException::class);
     }
 
     public function testThrowsWhenJsonIsNotAnArray(): void
     {
-        $this->expectException(InvalidJsonException::class);
-        $this->expectExceptionMessage('Expected JSON to decode to an array, got "string".');
-
-        ArrayReader::fromJson('"just a string"');
+        // act + assert
+        fact(static fn () => ArrayReader::fromJson('"just a string"'))
+            ->throws(InvalidJsonException::class, 'Expected JSON to decode to an array, got "string".');
     }
 }
