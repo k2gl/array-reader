@@ -58,7 +58,7 @@ final class StrictArrayReaderTest extends TestCase
         $reader = StrictArrayReader::of(['name' => 'Ada']);
 
         fact($reader->stringOr('name'))->is('Ada');
-        fact($reader->stringOr('missing'))->is(null);
+        fact($reader->stringOr('missing'))->null();
         fact($reader->stringOr('missing', 'fallback'))->is('fallback');
         fact($reader->intOr('missing', 0))->is(0);
         fact($reader->boolOr('missing', false))->false();
@@ -73,9 +73,9 @@ final class StrictArrayReaderTest extends TestCase
     {
         $reader = StrictArrayReader::of(['address' => ['city' => 'Paris']]);
 
-        fact($reader->nested('address') instanceof StrictArrayReader)->true();
+        fact($reader->nested('address'))->instanceOf(StrictArrayReader::class);
         fact($reader->nested('address')->string('city'))->is('Paris');
-        fact($reader->nestedOr('missing'))->is(null);
+        fact($reader->nestedOr('missing'))->null();
     }
 
     public function testStringThrowsOnMissingKey(): void

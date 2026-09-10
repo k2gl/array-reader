@@ -66,27 +66,26 @@ final class LazyDefaultsAndRequireTest extends TestCase
     {
         $reader = ArrayReader::of(['a' => 1, 'b' => 2]);
 
-        fact($reader->require(['a', 'b']) === $reader)->true();
+        fact($reader->require(['a', 'b']))->is($reader);
     }
 
     public function testRequireFollowsDotPaths(): void
     {
         $reader = ArrayReader::of(['user' => ['id' => 1, 'name' => 'x']]);
 
-        fact($reader->require(['user.id', 'user.name']) === $reader)->true();
+        fact($reader->require(['user.id', 'user.name']))->is($reader);
     }
 
     public function testRequireThrowsListingAllMissingKeys(): void
     {
         $reader = ArrayReader::of(['a' => 1]);
 
-        try {
-            $reader->require(['a', 'b', 'c']);
-            $this->fail('Expected MissingKeyException');
-        } catch (MissingKeyException $e) {
-            fact(str_contains($e->getMessage(), '"b"'))->true();
-            fact(str_contains($e->getMessage(), '"c"'))->true();
-            fact(str_contains($e->getMessage(), '"a"'))->false();
-        }
+        fact(fn () => $reader->require(['a', 'b', 'c']))->throws(
+            MissingKeyException::class,
+            inspect: static fn (MissingKeyException $e) => fact($e->getMessage())
+                ->containsString('"b"')
+                ->containsString('"c"')
+                ->notContainsString('"a"'),
+        );
     }
 }
