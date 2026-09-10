@@ -79,7 +79,7 @@ final class CollectionCastersTest extends TestCase
     public function testDateTimesOrFallsBackToDefault(): void
     {
         fact(ArrayReader::of([])->dateTimesOr('dates'))->null();
-        fact(ArrayReader::of(['dates' => ['not-a-date']])->dateTimesOr('dates', []))->is([]);
+        fact(ArrayReader::of(['dates' => ['not-a-date']])->dateTimesOr('dates', []))->isEmptyArray();
     }
 
     public function testListOfMapsEachElementThroughTheCaster(): void

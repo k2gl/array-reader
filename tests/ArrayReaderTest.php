@@ -137,7 +137,7 @@ final class ArrayReaderTest extends TestCase
     {
         $reader = ArrayReader::of(['filters' => ['page' => '5']]);
 
-        fact($reader->nested('filters') instanceof ArrayReader)->true();
+        fact($reader->nested('filters'))->instanceOf(ArrayReader::class);
         fact($reader->nested('filters')->int('page'))->is(5);
     }
 

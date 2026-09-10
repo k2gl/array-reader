@@ -29,15 +29,15 @@ final class NestedListTest extends TestCase
 
         $items = $reader->nestedList('items');
 
-        fact(count($items))->is(2);
-        fact($items[0] instanceof ArrayReader)->true();
+        fact($items)->count(2);
+        fact($items[0])->instanceOf(ArrayReader::class);
         fact($items[0]->int('id'))->is(1);
         fact($items[1]->string('name'))->is('b');
     }
 
     public function testEmptyListIsEmpty(): void
     {
-        fact(ArrayReader::of(['items' => []])->nestedList('items'))->is([]);
+        fact(ArrayReader::of(['items' => []])->nestedList('items'))->isEmptyArray();
     }
 
     public function testThrowsOnMissingKey(): void
@@ -62,24 +62,24 @@ final class NestedListTest extends TestCase
 
     public function testOrReturnsNullOnMissingKey(): void
     {
-        fact(ArrayReader::of([])->nestedListOr('items'))->is(null);
+        fact(ArrayReader::of([])->nestedListOr('items'))->null();
     }
 
     public function testOrReturnsNullWhenNotAList(): void
     {
-        fact(ArrayReader::of(['items' => ['id' => 1]])->nestedListOr('items'))->is(null);
+        fact(ArrayReader::of(['items' => ['id' => 1]])->nestedListOr('items'))->null();
     }
 
     public function testOrReturnsNullWhenAnElementIsNotAnArray(): void
     {
-        fact(ArrayReader::of(['items' => [['id' => 1], 5]])->nestedListOr('items'))->is(null);
+        fact(ArrayReader::of(['items' => [['id' => 1], 5]])->nestedListOr('items'))->null();
     }
 
     public function testOrReturnsReadersWhenValid(): void
     {
         $items = ArrayReader::of(['items' => [['id' => 1]]])->nestedListOr('items');
 
-        fact($items !== null)->true();
+        fact($items)->notNull();
         fact($items[0]->int('id'))->is(1);
     }
 }

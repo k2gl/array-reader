@@ -76,7 +76,7 @@ final class DateTimeTest extends TestCase
 
     public function testOrReturnsNullByDefault(): void
     {
-        fact(ArrayReader::of(['at' => 'nonsense'])->dateTimeOr('at'))->is(null);
+        fact(ArrayReader::of(['at' => 'nonsense'])->dateTimeOr('at'))->null();
     }
 
     public function testOrParsesWithFormat(): void

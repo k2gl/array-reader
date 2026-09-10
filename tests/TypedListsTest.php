@@ -39,7 +39,7 @@ final class TypedListsTest extends TestCase
 
     public function testEmptyListIsEmpty(): void
     {
-        fact(ArrayReader::of(['ids' => []])->ints('ids'))->is([]);
+        fact(ArrayReader::of(['ids' => []])->ints('ids'))->isEmptyArray();
     }
 
     public function testThrowsWhenAnElementCannotBeProduced(): void
@@ -80,12 +80,12 @@ final class TypedListsTest extends TestCase
 
     public function testOrReturnsNullByDefault(): void
     {
-        fact(ArrayReader::of([])->intsOr('ids'))->is(null);
+        fact(ArrayReader::of([])->intsOr('ids'))->null();
     }
 
     public function testOrReturnsDefaultWhenNotAList(): void
     {
-        fact(ArrayReader::of(['ids' => 'nope'])->intsOr('ids', []))->is([]);
+        fact(ArrayReader::of(['ids' => 'nope'])->intsOr('ids', []))->isEmptyArray();
     }
 
     public function testOrReturnsDefaultWhenAnElementCannotBeProduced(): void
